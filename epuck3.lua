@@ -12,7 +12,12 @@
     braitAllSensAvoid_leftMotor={0,0.5,1,-1,-0.5,-0.5,0,0}
     braitAllSensAvoid_rightMotor={-0.5,-0.5,-1,1,0.5,0,0,0}
 threadFunction=function()
-    while sim.getSimulationState()~=sim.simulation_advancing_abouttostop do
+    while sim.getSimulationState()~=sim.simulation_advancing_abouttostop do  
+       
+        for z =0,10,1 do 
+        sim.setJointTargetVelocity(leftMotor,maxVel)
+        sim.setJointTargetVelocity(rightMotor,-maxVel)
+       end 
         sim.setJointTargetVelocity(leftMotor,maxVel)
         sim.setJointTargetVelocity(rightMotor,maxVel)
         
@@ -37,10 +42,38 @@ threadFunction=function()
             blobBoxDimensions={t1[2+(i-1)*dataSizePerBlob+5],t1[2+(i-1)*dataSizePerBlob+6]}
             -- now do something with the blob information
             -- table operation
-            table.insert(MatrixBlod,yPos)
-           -- print(MatrixBlod[1])
+            --table.insert(MatrixBlod,yPos)
+             MatrixBlod[i] = {xPos,yPos}
+          --  print(MatrixBlod[i])
+             
         end
--- Max blodsize  funciton
+-- PID control section
+   -- Construct pid table
+     local pid = {SetPos, ActualPos, err, err_last,Kp,Ki,Kd,integral,voltage}         
+   -- Initialise the value 
+        print("PID_init begin \n");
+        pid.SetPos=0.5;
+        pid.ActualPos=0.0;
+        pid.err=0.0;
+        pid.err_last=0.0;
+        pid.voltage=0.0;
+        pid.integral=0.0;
+        pid.Kp=0.2;
+        pid.Ki=0.015;
+        pid.Kd=0.2;
+        print("PID_init end \n")
+   -- algorithm for PID control
+
+ 
+        pid.err=math.abs(pid.SetPos-pid.ActualPos)
+        pid.integral=pid.integral+pid.err
+        ActualSpeed=pid.Kp*pid.err+pid.Ki*pid.integral+pid.Kd*(pid.err-pid.err_last);
+        pid.err_last=pid.err;
+    --    pid.ActualSpeed=pid.voltage*1.0;
+   
+
+    
+-- Minimum vertical position of blod in camera,
             function table_min(t)
               local mn=nil;
               for k, v in pairs(t) do
@@ -54,18 +87,29 @@ threadFunction=function()
               return mn
             end
 -- get minimal yPos
-    if (table_min(MatrixBlod)) then
 
-        if (xPos<0.5) then
-        sim.setJointTargetVelocity(leftMotor,maxVel*(1-(0.5-xPos)))
+ --local min = (MatrixBlod)
+ -- print(min)
+
+        --print(t1[5])
+     k1= 1.3
+     if (t1[5]~=nil) then 
+        if (t1[5]<0.5) then
+        sim.setJointTargetVelocity(leftMotor,maxVel*(1-(0.5-t1[5])))
         sim.setJointTargetVelocity(rightMotor,maxVel)
         end
 
-        if (xPos>0.5) then
+        if (t1[5]>0.5) then
         sim.setJointTargetVelocity(leftMotor,maxVel)
-        sim.setJointTargetVelocity(rightMotor,maxVel*(1-(xPos-0.5)))
+        sim.setJointTargetVelocity(rightMotor,maxVel*(1-(t1[5]-0.5)))
         end
-    end
+--[[
+        if (0.45<t1[5] and t1[5]<0.55) then
+        sim.setJointTargetVelocity(leftMotor,maxVel)
+        sim.setJointTargetVelocity(rightMotor,maxVel)
+        end
+]]
+     end
 
    end
 -- No bold will turn around 
@@ -132,7 +176,7 @@ for i=1,8,1 do
     proxSens[i]=sim.getObjectHandle('ePuck_proxSensor'..i)
 end
 
-maxVel = 6.24 -- Maximum wheel speeds in rad/s.
+maxVel = 30 -- Maximum wheel speeds in rad/s.
 
 res,err=xpcall(threadFunction,function(err) return debug.traceback(err) end)
 if not res then
